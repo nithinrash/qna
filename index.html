@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hurup</title>
+
+  <!-- Tailwind (Play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { DEFAULT:'#111', accent:'#10a37f' } },
+          boxShadow: { card: '0 8px 24px rgba(0,0,0,.06)' }
+        }
+      }
+    }
+  </script>
+  <style>
+    *{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
+    .dark *{scrollbar-color:#374151 transparent}
+    ::-webkit-scrollbar{height:8px;width:8px}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9999px}
+    .dark ::-webkit-scrollbar-thumb{background:#374151}
+  </style>
+</head>
+
+<body class="h-full bg-white text-black dark:bg-neutral-950 dark:text-neutral-100 transition-colors">
+  <div class="min-h-full grid grid-rows-[auto,1fr,auto]">
+    <!-- Top bar -->
+    <header class="border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white/80 dark:bg-neutral-950/80 backdrop-blur z-20">
+      <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <svg width="22" height="22" viewBox="0 0 24 24" class="text-brand-accent"><path fill="currentColor" d="M12 2l2 5l5 2l-5 2l-2 5l-2-5l-5-2l5-2z"/></svg>
+          <h1 class="font-semibold tracking-tight">Hurup</h1>
+        </div>
+        <div class="ml-auto">
+          <button id="btn-theme" class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900" title="Toggle theme">
+            <svg class="h-5 w-5 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <svg class="h-5 w-5 hidden dark:block" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat -->
+    <main class="max-w-3xl mx-auto w-full px-4 py-6">
+      <div id="chat" class="space-y-4"></div>
+    </main>
+
+    <!-- Composer -->
+    <footer class="sticky bottom-0 bg-gradient-to-t from-white dark:from-neutral-950 via-white/90 dark:via-neutral-950/90 to-transparent">
+      <div class="max-w-3xl mx-auto px-4 pt-2 pb-6">
+        <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-2 shadow-card">
+          <div class="flex items-end gap-2">
+            <textarea id="input" rows="1" placeholder="Ask like ChatGPT (e.g., “make 16 Q&A on Indian cricket”)"
+                      class="flex-1 resize-none bg-transparent px-3 py-2 outline-none"></textarea>
+            <button id="btn-send" class="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-accent text-white hover:opacity-95">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3l3 7 10 2-10 2z"/></svg>
+              <span>Send</span>
+            </button>
+          </div>
+          <div class="mt-2 px-2 text-xs text-neutral-500">Enter to send · Shift+Enter for newline</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Templates -->
+  <template id="tpl-user">
+    <div class="flex gap-3 items-start">
+      <div class="shrink-0 rounded-full h-8 w-8 flex items-center justify-center border border-neutral-200 dark:border-neutral-800">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm7 9a7 7 0 0 0-14 0Z"/></svg>
+      </div>
+      <div class="grow">
+        <div class="rounded-2xl px-4 py-3 border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+          <div class="text-sm leading-6"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-assistant-table">
+    <div class="flex gap-3 items-start">
+      <div class="shrink-0 rounded-full h-8 w-8 flex items-center justify-center border border-neutral-200 dark:border-neutral-800">
+        <svg class="h-4 w-4 text-brand-accent" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2 5l5 2l-5 2l-2 5l-2-5l-5-2l5-2z"/></svg>
+      </div>
+      <div class="grow min-w-0">
+        <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 overflow-hidden shadow-card">
+          <div class="overflow-auto">
+            <table class="min-w-[720px] w-full border-collapse">
+              <thead class="bg-neutral-50 dark:bg-neutral-900 text-left">
+                <tr>
+                  <th class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 w-12">#</th>
+                  <th class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 w-48">Keyword</th>
+                  <th class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">Full Question</th>
+                  <th class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 w-48">Answer</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="p-2 border-t border-neutral-200 dark:border-neutral-800 flex gap-2">
+            <button class="btn-copy px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900">Copy RAW</button>
+            <button class="btn-download px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900">Download .txt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 hidden px-3 py-2 rounded-lg text-sm bg-black text-white dark:bg-white dark:text-black shadow-lg"></div>
+
+  <script>
+    // ====== CONFIG: put your Groq API key here ======
+    const GROQ_API_KEY = "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";   // <-- replace with your key
+    const MODEL = "llama-3.1-8b-instant";       // fixed model
+    const TEMPERATURE = 0.2;
+
+    // ====== helpers ======
+    const $ = s => document.querySelector(s);
+    const chat = $('#chat');
+    const input = $('#input');
+
+    const THEME='qa_theme';
+    function applyTheme(){ document.documentElement.classList.toggle('dark',(localStorage.getItem(THEME)||'light')==='dark'); }
+    applyTheme();
+    $('#btn-theme').onclick=()=>{ const t=document.documentElement.classList.contains('dark')?'dark':'light'; localStorage.setItem(THEME,t==='dark'?'light':'dark'); applyTheme(); };
+
+    const toast=(t)=>{ const el=$("#toast"); el.textContent=t; el.classList.remove("hidden"); setTimeout(()=>el.classList.add("hidden"),1500); };
+    function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c])); }
+
+    // ====== UI renderers ======
+    function renderUser(text){
+      const tpl = $('#tpl-user').content.cloneNode(true);
+      tpl.querySelector('.text-sm').textContent = text;
+      chat.appendChild(tpl);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function renderAssistantTable(tsvRaw){
+      const lines = tsvRaw.split(/\r?\n/).filter(Boolean);
+      const header = lines.shift() || '';
+      const EXPECT = "#\tKeyword\tFull Question\tAnswer";
+
+      const rows = [];
+      for(const line of lines){
+        const parts = line.split('\t');
+        if(parts.length < 4) continue;
+        const num = parts[0];
+        const keyword = parts[1];
+        const answer = parts[parts.length-1];
+        const fullQ = parts.slice(2, parts.length-1).join(' ');
+        rows.push([num, keyword, fullQ, answer]);
+      }
+
+      const tpl = $('#tpl-assistant-table').content.cloneNode(true);
+      const tbody = tpl.querySelector('tbody');
+      for(const r of rows){
+        const tr=document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">${escapeHTML(r[0])}</td>
+          <td class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">${escapeHTML(r[1])}</td>
+          <td class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">${escapeHTML(r[2])}</td>
+          <td class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800">${escapeHTML(r[3])}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      const node = tpl.firstElementChild;
+      chat.appendChild(node);
+      chat.scrollTop = chat.scrollHeight;
+
+      const okHeader = (header.trim() === EXPECT);
+      const rawForCopy = okHeader ? tsvRaw : (EXPECT + '\n' + lines.join('\n'));
+      node.querySelector('.btn-copy').onclick = async ()=>{ await navigator.clipboard.writeText(rawForCopy); toast('Copied'); };
+      node.querySelector('.btn-download').onclick = ()=>{
+        const blob=new Blob([rawForCopy],{type:'text/plain;charset=utf-8'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='qa.txt';
+        document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
+      };
+    }
+
+    function renderThinking(){
+      const tpl = $('#tpl-assistant-table').content.cloneNode(true);
+      tpl.querySelector('tbody').innerHTML = `<tr><td class="px-3 py-3" colspan="4">…generating…</td></tr>`;
+      const node = tpl.firstElementChild;
+      node.dataset.thinking='1';
+      node.querySelector('.btn-copy').classList.add('hidden');
+      node.querySelector('.btn-download').classList.add('hidden');
+      chat.appendChild(node);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function clearThinking(){ const n = chat.querySelector('[data-thinking="1"]'); if(n) n.remove(); }
+
+    // ====== prompt building from natural text ======
+    function inferParamsFrom(text){
+      let n = 16;
+      let topic = '';
+      const numMatch = text.match(/(^|\s)(\d{1,3})(\s|$)/);
+      if(numMatch){ n = Math.max(1, Math.min(100, parseInt(numMatch[2],10))); }
+      const onMatch = text.match(/(?:on|about)\s+(.+)$/i);
+      if(onMatch){ topic = onMatch[1].trim(); }
+      if(!topic){
+        topic = text.replace(/make|generate|q\s*&?\s*a|qna|q\/a|questions?|answers?|table|rows?|\d+/gi,'')
+                    .replace(/on|about/gi,'').trim();
+      }
+      if(topic.length < 2) topic = 'General knowledge';
+      return { n, topic };
+    }
+
+    function buildMessages(userText){
+      const { n, topic } = inferParamsFrom(userText);
+      const system = `
+You are a precise data generator.
+Return output ONLY as tab-separated values with this exact first line:
+#	Keyword	Full Question	Answer
+Then output exactly ${n} data rows. Each row must have 4 fields separated by a single TAB character.
+Do not include commentary, code fences, or blank lines. Keep Answers 1–3 words.`.trim();
+
+      const user = `Generate ${n} Q&A rows about the topic: ${topic}.
+Columns:
+1) Row number (1..${n})
+2) Keyword (1–3 words)
+3) Full Question (clear, grammatical)
+4) Answer (1–3 words, factual)
+Output must be ONLY the TSV block with the exact header and ${n} rows.`;
+
+      return {system, user};
+    }
+
+    // ====== Groq call ======
+    async function sendToGroq(system, user){
+      if(!GROQ_API_KEY || !GROQ_API_KEY.startsWith('gsk_')) {
+        throw new Error('Missing or invalid GROQ_API_KEY in code.');
+      }
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+GROQ_API_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model: MODEL,
+          temperature: TEMPERATURE,
+          messages:[
+            {role:'system', content: system},
+            {role:'user', content: user}
+          ],
+          stream:false
+        })
+      });
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error(`HTTP ${res.status}: ${t}`);
+      }
+      const data = await res.json();
+      return (data?.choices?.[0]?.message?.content || '').trim();
+    }
+
+    // ====== input behavior ======
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#btn-send').click(); }
+    });
+    $('#btn-send').onclick = async ()=>{
+      const text = input.value.trim();
+      if(!text) return;
+      renderUser(text);
+      input.value='';
+      const {system, user} = buildMessages(text);
+      renderThinking();
+      try{
+        const out = await sendToGroq(system, user);
+        clearThinking();
+        renderAssistantTable(out);
+      }catch(err){
+        clearThinking();
+        renderAssistantTable("#\tKeyword\tFull Question\tAnswer\n1\tError\tCould not generate\tFailed");
+        console.error(err);
+      }
+    };
+
+    // welcome hint
+    (function(){
+      renderUser('Type something like “make 16 Q&A on Indian cricket”.');
+    })();
+  </script>
+</body>
+</html>
