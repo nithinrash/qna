@@ -24,6 +24,7 @@
     ::-webkit-scrollbar{height:8px;width:8px}
     ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9999px}
     .dark ::-webkit-scrollbar-thumb{background:#374151}
+    pre code{white-space:pre-wrap; word-wrap:break-word}
   </style>
 </head>
 
@@ -55,7 +56,7 @@
       <div class="max-w-3xl mx-auto px-4 pt-2 pb-6">
         <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-2 shadow-card">
           <div class="flex items-end gap-2">
-            <textarea id="input" rows="1" placeholder="Ask like ChatGPT (e.g., “make 16 Q&A on Indian cricket”)"
+            <textarea id="input" rows="1" placeholder='Ask like: “make 16 Q&A on Indian cricket”'
                       class="flex-1 resize-none bg-transparent px-3 py-2 outline-none"></textarea>
             <button id="btn-send" class="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-accent text-white hover:opacity-95">
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3l3 7 10 2-10 2z"/></svg>
@@ -111,13 +112,33 @@
     </div>
   </template>
 
+  <template id="tpl-assistant-json">
+    <div class="flex gap-3 items-start">
+      <div class="shrink-0 rounded-full h-8 w-8 flex items-center justify-center border border-neutral-200 dark:border-neutral-800">
+        <svg class="h-4 w-4 text-brand-accent" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v16H4z"/></svg>
+      </div>
+      <div class="grow">
+        <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 overflow-hidden shadow-card">
+          <div class="p-3">
+            <div class="text-xs text-neutral-500 mb-2">Wheel JSON</div>
+            <pre class="bg-neutral-50 dark:bg-neutral-900 p-3 rounded-lg overflow-auto max-h-72"><code class="text-xs" data-json></code></pre>
+          </div>
+          <div class="p-2 border-t border-neutral-200 dark:border-neutral-800 flex gap-2">
+            <button class="btn-copy-json px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900">Copy JSON</button>
+            <button class="btn-download-json px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900">Download krishna_wheel.json</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <!-- Toast -->
   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 hidden px-3 py-2 rounded-lg text-sm bg-black text-white dark:bg-white dark:text-black shadow-lg"></div>
 
   <script>
     // ====== CONFIG: put your Groq API key here ======
-    const GROQ_API_KEY = "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";   // <-- replace with your key
-    const MODEL = "llama-3.1-8b-instant";       // fixed model
+    const GROQ_API_KEY = "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";   // <-- replace with your key
+    const MODEL = "llama-3.1-8b-instant";
     const TEMPERATURE = 0.2;
 
     // ====== helpers ======
@@ -132,6 +153,7 @@
 
     const toast=(t)=>{ const el=$("#toast"); el.textContent=t; el.classList.remove("hidden"); setTimeout(()=>el.classList.add("hidden"),1500); };
     function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c])); }
+    const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 
     // ====== UI renderers ======
     function renderUser(text){
@@ -150,10 +172,10 @@
       for(const line of lines){
         const parts = line.split('\t');
         if(parts.length < 4) continue;
-        const num = parts[0];
-        const keyword = parts[1];
-        const answer = parts[parts.length-1];
-        const fullQ = parts.slice(2, parts.length-1).join(' ');
+        const num = parts[0].trim();
+        const keyword = parts[1].trim();
+        const answer = parts[parts.length-1].trim();
+        const fullQ = parts.slice(2, parts.length-1).join(' ').trim();
         rows.push([num, keyword, fullQ, answer]);
       }
 
@@ -175,11 +197,34 @@
 
       const okHeader = (header.trim() === EXPECT);
       const rawForCopy = okHeader ? tsvRaw : (EXPECT + '\n' + lines.join('\n'));
-      node.querySelector('.btn-copy').onclick = async ()=>{ await navigator.clipboard.writeText(rawForCopy); toast('Copied'); };
+      node.querySelector('.btn-copy').onclick = async ()=>{ await navigator.clipboard.writeText(rawForCopy); toast('Copied TSV'); };
       node.querySelector('.btn-download').onclick = ()=>{
         const blob=new Blob([rawForCopy],{type:'text/plain;charset=utf-8'});
         const url=URL.createObjectURL(blob);
         const a=document.createElement('a'); a.href=url; a.download='qa.txt';
+        document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
+      };
+
+      return rows;
+    }
+
+    function renderAssistantJSON(configObj){
+      const tpl = $('#tpl-assistant-json').content.cloneNode(true);
+      const node = tpl.firstElementChild;
+      const code = node.querySelector('[data-json]');
+      const jsonStr = JSON.stringify(configObj, null, 2);
+      code.textContent = jsonStr;
+      chat.appendChild(node);
+      chat.scrollTop = chat.scrollHeight;
+
+      node.querySelector('.btn-copy-json').onclick = async ()=>{
+        await navigator.clipboard.writeText(jsonStr);
+        toast('Copied JSON');
+      };
+      node.querySelector('.btn-download-json').onclick = ()=>{
+        const blob=new Blob([jsonStr],{type:'application/json;charset=utf-8'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='krishna_wheel.json';
         document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
       };
     }
@@ -196,39 +241,27 @@
     }
     function clearThinking(){ const n = chat.querySelector('[data-thinking="1"]'); if(n) n.remove(); }
 
-    // ====== prompt building from natural text ======
-    function inferParamsFrom(text){
-      let n = 16;
-      let topic = '';
-      const numMatch = text.match(/(^|\s)(\d{1,3})(\s|$)/);
-      if(numMatch){ n = Math.max(1, Math.min(100, parseInt(numMatch[2],10))); }
-      const onMatch = text.match(/(?:on|about)\s+(.+)$/i);
-      if(onMatch){ topic = onMatch[1].trim(); }
-      if(!topic){
-        topic = text.replace(/make|generate|q\s*&?\s*a|qna|q\/a|questions?|answers?|table|rows?|\d+/gi,'')
-                    .replace(/on|about/gi,'').trim();
-      }
-      if(topic.length < 2) topic = 'General knowledge';
-      return { n, topic };
-    }
-
+    // ====== prompt (force 16 rows for your wheel)
     function buildMessages(userText){
-      const { n, topic } = inferParamsFrom(userText);
+      const topicPart = userText.replace(/\b(make|generate|q\s*&?\s*a|qna|q\/a|questions?|answers?|table|rows?)\b/ig,'')
+                                .replace(/\bon\b|\babout\b/ig,'')
+                                .replace(/\d+/g,'')
+                                .trim() || 'Indian cricket';
+      const n = 16;
       const system = `
 You are a precise data generator.
 Return output ONLY as tab-separated values with this exact first line:
 #	Keyword	Full Question	Answer
-Then output exactly ${n} data rows. Each row must have 4 fields separated by a single TAB character.
-Do not include commentary, code fences, or blank lines. Keep Answers 1–3 words.`.trim();
-
-      const user = `Generate ${n} Q&A rows about the topic: ${topic}.
+Then output exactly ${n} data rows (1..${n}). Each row must have 4 fields separated by a single TAB.
+Keep Answers short (<=3 words). No commentary, no code fences, no blanks.
+`.trim();
+      const user = `Generate ${n} Q&A about: ${topicPart}.
 Columns:
-1) Row number (1..${n})
+1) Row number 1..${n}
 2) Keyword (1–3 words)
-3) Full Question (clear, grammatical)
+3) Full Question (clear)
 4) Answer (1–3 words, factual)
-Output must be ONLY the TSV block with the exact header and ${n} rows.`;
-
+Output ONLY the TSV block with the exact header and ${n} rows.`;
       return {system, user};
     }
 
@@ -243,10 +276,7 @@ Output must be ONLY the TSV block with the exact header and ${n} rows.`;
         body:JSON.stringify({
           model: MODEL,
           temperature: TEMPERATURE,
-          messages:[
-            {role:'system', content: system},
-            {role:'user', content: user}
-          ],
+          messages:[ {role:'system', content: system}, {role:'user', content: user} ],
           stream:false
         })
       });
@@ -258,10 +288,70 @@ Output must be ONLY the TSV block with the exact header and ${n} rows.`;
       return (data?.choices?.[0]?.message?.content || '').trim();
     }
 
+    // ====== Wheel JSON builder (16/24 pairing logic)
+    function buildWheelJSON(rows){
+      // rows: [ [num, keyword, fullQ, answer], ... ] length==16
+      const qas = rows.map(r => ({ key: r[1], question: r[2], answer: r[3] }));
+
+      // inner order = keywords in 1..16
+      const innerOrder = rows.map(r => r[1]);
+      const printOrder = [...innerOrder];
+
+      // answers array and helpers
+      const answers = rows.map(r => r[3]);
+      const tokens = s => (s||'').toLowerCase().split(/[\s\-]+/).filter(Boolean);
+
+      function pickConfuser(idxA, idxB){
+        const a1 = answers[idxA], a2 = answers[idxB];
+        const set = new Set([a1, a2]);
+        // prefer same first letter
+        const fl = a1?.[0]?.toLowerCase();
+        let pool = answers.filter(x => x && !set.has(x) && x[0]?.toLowerCase() === fl);
+        // or shared token
+        if(pool.length===0){
+          const tok = tokens(a1);
+          pool = answers.filter(x=>{
+            if(!x || set.has(x)) return false;
+            const xt = tokens(x);
+            return xt.some(t=>tok.includes(t));
+          });
+        }
+        // fallback random other answer
+        if(pool.length===0){
+          pool = answers.filter(x => x && !set.has(x));
+        }
+        return pool.length? pool[randInt(0,pool.length-1)] : "—";
+      }
+
+      // Outer flags (24): for pair j=0..7 → positions {j, j+16, j+8}
+      // Put [ans[j], ans[j+8], confuser] shuffled among those 3 slots
+      const outerFlags = new Array(24).fill("");
+      for(let j=0;j<8;j++){
+        const i1 = j;       // 1..8  (0-based)
+        const i2 = j+8;     // 9..16 (0-based)
+        const slots = [j, (j+16)%24, (j+8)%24]; // e.g. 0,16,8 ; 1,17,9 ; ...
+        const trio = [answers[i1], answers[i2], pickConfuser(i1,i2)];
+        // shuffle trio → so which slot is the correct for each pair changes per generation
+        for(let k=trio.length-1;k>0;k--){ const m=randInt(0,k); [trio[k],trio[m]]=[trio[m],trio[k]]; }
+        slots.forEach((pos, idx)=>{ outerFlags[pos] = trio[idx] || ""; });
+      }
+
+      // If any empty slots remain (shouldn't), fill from remaining answers/dedupe
+      for(let i=0;i<24;i++){
+        if(!outerFlags[i]){
+          const cand = answers[randInt(0,answers.length-1)];
+          outerFlags[i] = cand || "";
+        }
+      }
+
+      return { qas, innerOrder, printOrder, outerFlags };
+    }
+
     // ====== input behavior ======
     input.addEventListener('keydown', e=>{
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#btn-send').click(); }
     });
+
     $('#btn-send').onclick = async ()=>{
       const text = input.value.trim();
       if(!text) return;
@@ -272,7 +362,16 @@ Output must be ONLY the TSV block with the exact header and ${n} rows.`;
       try{
         const out = await sendToGroq(system, user);
         clearThinking();
-        renderAssistantTable(out);
+        const rows = renderAssistantTable(out);
+
+        // enforce 16 rows; if not, pad/truncate safely
+        const rows16 = [...rows.slice(0,16)];
+        while(rows16.length<16){
+          rows16.push([String(rows16.length+1), 'Keyword '+(rows16.length+1), 'Placeholder question', '—']);
+        }
+
+        const config = buildWheelJSON(rows16);
+        renderAssistantJSON(config);
       }catch(err){
         clearThinking();
         renderAssistantTable("#\tKeyword\tFull Question\tAnswer\n1\tError\tCould not generate\tFailed");
@@ -282,7 +381,7 @@ Output must be ONLY the TSV block with the exact header and ${n} rows.`;
 
     // welcome hint
     (function(){
-      renderUser('Type something like “make 16 Q&A on Indian cricket”.');
+      renderUser('Type something like “make 16 Q&A on Indian cricket”. I will generate TSV + the wheel JSON.');
     })();
   </script>
 </body>
